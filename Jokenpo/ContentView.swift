@@ -6,19 +6,19 @@
 //
 
 import SwiftUI
+import MultipeerConnectivity
+
+import SwiftUI
+import MultipeerConnectivity
 
 struct ContentView: View {
+    @StateObject private var service = JokenpoMultipeerService()
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            ConnectionView()
+                .environmentObject(service)
+//                .navigationTitle("Jokenpo Multipeer")
         }
-        .padding()
     }
-}
-
-#Preview {
-    ContentView()
 }
