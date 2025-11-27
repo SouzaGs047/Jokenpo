@@ -16,9 +16,24 @@ enum JokenpoMove: String, Codable, CaseIterable {
     case tesoura
 }
 
-struct JokenpoMessage: Codable {
-    let move: JokenpoMove
+enum RoundResult {
+    case none
+    case win
+    case defeat
+    case draw
 }
+
+enum JokenpoCommand: String, Codable {
+    case move
+    case resetMatch
+    case nextRound
+}
+
+struct JokenpoMessage: Codable {
+    let command: JokenpoCommand
+    let move: JokenpoMove?
+}
+
 
 class JokenpoMultipeerService: NSObject, ObservableObject {
     
@@ -41,7 +56,13 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
     
     @Published var myMove: JokenpoMove? = nil
     @Published var opponentMove: JokenpoMove? = nil
-    @Published var resultText: String = "Aguardando conexão…"
+    @Published var resultText: String = ""
+    
+    // Controle de rounds (melhor de 3)
+    @Published var currentRoundIndex: Int = 0          // 0, 1, 2
+    @Published var roundResults: [RoundResult] = Array(repeating: .none, count: 3)
+    @Published var matchFinished: Bool = false         // rodada (melhor de 3) terminou?
+
     
     // MARK: - Init
     
@@ -67,9 +88,6 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
         advertiser?.delegate = self
         advertiser?.startAdvertisingPeer()
         
-        DispatchQueue.main.async {
-            self.resultText = "Aguardando jogador entrar na partida…"
-        }
     }
     
     func stopHosting() {
@@ -86,9 +104,6 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
         browser?.delegate = self
         browser?.startBrowsingForPeers()
         
-        DispatchQueue.main.async {
-            self.resultText = "Procurando partidas próximas…"
-        }
     }
 
     func stopBrowsing() {
@@ -101,7 +116,6 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
     func invite(_ peer: MCPeerID) {
         guard let browser = browser else { return }
         browser.invitePeer(peer, to: session, withContext: nil, timeout: 10)
-        resultText = "Convidando \(peer.displayName)…"
     }
 
     func disconnect() {
@@ -112,34 +126,64 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
         DispatchQueue.main.async {
             self.connectedPeerName = nil
             self.isConnected = false
-            self.resetRound()
-            self.resultText = "Conexão encerrada. Volte a criar/entrar na partida."
+            self.resetMatch(localOnly: true) // só local
         }
     }
 
+
+
     
     // MARK: - Jogo
-    
-    func sendMove(_ move: JokenpoMove) {
-        myMove = move
-        updateResult()
-        
+    private func send(_ message: JokenpoMessage) {
         guard !session.connectedPeers.isEmpty else { return }
         
-        let message = JokenpoMessage(move: move)
         do {
             let data = try JSONEncoder().encode(message)
             try session.send(data, toPeers: session.connectedPeers, with: .reliable)
         } catch {
-            print("Erro ao enviar movimento: \(error)")
+            print("Erro ao enviar mensagem: \(error)")
         }
     }
+
+    func sendMove(_ move: JokenpoMove) {
+        myMove = move
+        updateResult()
+        
+        let message = JokenpoMessage(command: .move, move: move)
+        send(message)
+    }
+
     
     func resetRound() {
         myMove = nil
         opponentMove = nil
-        resultText = isConnected ? "Escolha sua jogada" : "Aguardando conexão…"
+        resultText = "Escolha sua jogada"
     }
+
+    // localOnly = true → só mexe aqui, não manda nada na sessão
+    func resetMatch(localOnly: Bool = false) {
+        currentRoundIndex = 0
+        roundResults = Array(repeating: .none, count: 3)
+        matchFinished = false
+        resetRound()
+        
+        if !localOnly {
+            let message = JokenpoMessage(command: .resetMatch, move: nil)
+            send(message)
+        }
+    }
+
+    func nextRound(localOnly: Bool = false) {
+        guard currentRoundIndex < 2 else { return } // máximo 3 rounds
+        currentRoundIndex += 1
+        resetRound()
+        
+        if !localOnly {
+            let message = JokenpoMessage(command: .nextRound, move: nil)
+            send(message)
+        }
+    }
+
     
     private func updateResult() {
         guard let my = myMove else {
@@ -152,19 +196,49 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
             return
         }
         
-        let resultado: String
+        // Determina o resultado desse round
+        let roundResult: RoundResult
         
         if my == opp {
-            resultado = "Empate! Ambos jogaram \(my.rawValue)."
+            roundResult = .draw
         } else if (my == .pedra && opp == .tesoura) ||
                     (my == .papel && opp == .pedra) ||
                     (my == .tesoura && opp == .papel) {
-            resultado = "Você venceu! \(my.rawValue) ganha de \(opp.rawValue)."
+            roundResult = .win
         } else {
-            resultado = "Você perdeu! \(opp.rawValue) ganha de \(my.rawValue)."
+            roundResult = .defeat
         }
         
-        resultText = resultado
+        // Salva na posição atual (bolinha correspondente)
+        if currentRoundIndex < roundResults.count {
+            roundResults[currentRoundIndex] = roundResult
+        }
+        
+        // Se ainda não preencheu os 3 rounds, mostra o resultado do round
+        // e espera o botão "Novo round" para continuar
+        if currentRoundIndex < roundResults.count - 1 {
+            switch roundResult {
+            case .win:    resultText = "win"
+            case .defeat: resultText = "defeat"
+            case .draw:   resultText = "draw"
+            case .none:   resultText = ""
+            }
+            return
+        }
+        
+        // Se chegou no último round (3º), calcula o resultado da RODADA (melhor de 3)
+        matchFinished = true
+        
+        let wins    = roundResults.filter { $0 == .win }.count
+        let defeats = roundResults.filter { $0 == .defeat }.count
+        
+        if wins > defeats {
+            resultText = "win"
+        } else if defeats > wins {
+            resultText = "defeat"
+        } else {
+            resultText = "draw"
+        }
     }
 }
 
@@ -179,9 +253,9 @@ extension JokenpoMultipeerService: MCSessionDelegate {
             case .connected:
                 self.connectedPeerName = peerID.displayName
                 self.isConnected = true
-                self.resultText = "Conectado com \(peerID.displayName). Escolham suas jogadas!"
+                self.resultText = "Escolham suas jogadas!"
             case .connecting:
-                self.resultText = "Conectando com \(peerID.displayName)…"
+                self.resultText = ""
             case .notConnected:
                 self.connectedPeerName = nil
                 self.isConnected = false
@@ -199,14 +273,25 @@ extension JokenpoMultipeerService: MCSessionDelegate {
         do {
             let message = try JSONDecoder().decode(JokenpoMessage.self, from: data)
             DispatchQueue.main.async {
-                self.opponentMove = message.move
-                self.updateResult()
+                switch message.command {
+                case .move:
+                    if let move = message.move {
+                        self.opponentMove = move
+                        self.updateResult()
+                    }
+                case .resetMatch:
+                    // aplica o reset só localmente (já veio do outro)
+                    self.resetMatch(localOnly: true)
+                case .nextRound:
+                    // avança de round só localmente
+                    self.nextRound(localOnly: true)
+                }
             }
         } catch {
             print("Erro ao decodificar mensagem: \(error)")
         }
     }
-    
+
     // Não usados aqui, mas precisam existir:
     func session(_ session: MCSession,
                  didReceive stream: InputStream,
