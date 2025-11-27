@@ -12,102 +12,125 @@ struct ConnectionView: View {
     @EnvironmentObject var service: JokenpoMultipeerService
     @State private var goToGame = false
     
+    @State private var createRoom = false
+    @State private var joinRoom = false
+    
     var body: some View {
-        VStack(spacing: 24) {
+        ZStack {
+            Image("tela2")
             
-            // Estado da conexão
-            VStack(spacing: 8) {
-                Text(service.isConnected ?
-                     "Conectado com: \(service.connectedPeerName ?? "—")" :
-                     "Não conectado")
-                    .font(.headline)
-                
-                Text(service.resultText)
-                    .font(.subheadline)
-                    .multilineTextAlignment(.center)
-            }
-            .padding()
-            
-            // Botões de Host / Join
-            HStack(spacing: 16) {
-                Button {
-                    service.stopBrowsing()
-                    service.startHosting()
-                } label: {
-                    Label("Criar Partida", systemImage: "antenna.radiowaves.left.and.right")
-                }
-                .buttonStyle(.borderedProminent)
-                
-                Button {
-                    service.stopHosting()
-                    service.startBrowsing()
-                } label: {
-                    Label("Entrar em Partida", systemImage: "person.2.fill")
-                }
-                .buttonStyle(.bordered)
-            }
-            
-            // Lista de partidas encontradas
-            if service.isBrowsing {
-                if service.discoveredPeers.isEmpty {
-                    Text("Procurando partidas próximas…")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Partidas disponíveis:")
-                            .font(.headline)
-                        
-                        ForEach(service.discoveredPeers, id: \.self) { peer in
-                            Button {
-                                service.invite(peer)
-                            } label: {
-                                HStack {
-                                    Image(systemName: "gamecontroller.fill")
-                                    Text(peer.displayName)
-                                    Spacer()
-                                    Image(systemName: "arrow.right.circle")
-                                }
-                                .padding(8)
-                            }
-                            .buttonStyle(.bordered)
+            VStack{
+                Image("jokenGo")
+                    .padding(.top,50)
+                    .padding(.bottom,25)
+                // Botões de Host / Join
+                VStack(spacing: 15) {
+                    // Botão de Criar Sala (host)
+                    if !joinRoom {   // <-- agora ele depende de joinRoom
+                        Button {
+                            service.stopBrowsing()
+                            service.startHosting()
+                            
+                            createRoom = true   // está criando sala
+                            joinRoom = false    // não está procurando sala
+                        } label: {
+                            Image(createRoom ? "tela2-creatingRoom" : "tela2-create")
                         }
                     }
-                    .padding(.top, 8)
+                    
+                    // Botão de Encontrar Sala (join)
+                    if !createRoom {  // <-- agora ele depende de createRoom
+                        Button {
+                            service.stopHosting()
+                            service.startBrowsing()
+                            
+                            createRoom = false   // não está criando
+                            joinRoom = true      // está procurando sala
+                        } label: {
+                            Image(joinRoom ? "tela2-findingRoom" : "tela2-find")
+                        }
+                    }
                 }
-            }
-            
-            Divider()
-            
-            // Link para o jogo (apenas se estiver conectado)
-            if service.isConnected {
-                NavigationLink(isActive: $goToGame) {
-                    GameView()
-                        .environmentObject(service)
-                } label: {
-                    Text("Ir para o jogo")
+                
+                
+                if createRoom {
+                    Text("aguardando jogador entrar na sala....")
                         .font(.headline)
-                        .frame(maxWidth: .infinity)
+                        .padding()
                 }
-                .buttonStyle(.borderedProminent)
-            } else {
-                Text("Conecte-se a alguém para começar a jogar.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                
+                // Lista de partidas encontradas
+                if joinRoom {
+                    VStack(alignment: .center) {
+                        
+                        Text("encontrando outro jogador....")
+                            .font(.headline)
+                            .padding()
+                        
+                        
+                        ScrollView(.vertical, showsIndicators: false) {
+                            ForEach(service.discoveredPeers, id: \.self) { peer in
+                                
+                                Button {
+                                    service.invite(peer)
+                                } label: {
+                                    HStack {
+                                        Text(peer.displayName)
+                                            .foregroundStyle(.white)
+                                        Spacer()
+                                        Image(systemName: "play.circle.fill")
+                                            .font(.title)
+                                            .foregroundStyle(.white)
+                                    }
+                                    .padding()
+                                }
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .foregroundStyle(.greenGo)
+                                )
+                                .padding()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(.greenGo, lineWidth: 5)
+                    )
+                    .padding(20)
+                    .padding(.bottom)
+                }
+                    Spacer()
             }
-            
-            Spacer()
         }
-        .padding()
-        // Navega automaticamente quando conectar
-        .onChange(of: service.isConnected) { conectado in
-            if conectado {
-                goToGame = true
-            } else {
-                goToGame = false
+        .navigationBarBackButtonHidden(true)
+        .onChange(of: service.isConnected) { oldValue, newValue in
+            goToGame = newValue
+        }
+        .navigationDestination(isPresented: $goToGame) {
+            GameView()
+                .environmentObject(service)
+        }
+        .toolbar {
+            if createRoom || joinRoom {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        createRoom = false
+                        joinRoom = false
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                            .font(.headline)
+                            .bold()
+                            .foregroundStyle(.black)
+                    }
+                }
+                
             }
         }
     }
 }
 
+#Preview {
+    ConnectionView()
+        .environmentObject(JokenpoMultipeerService())
+}

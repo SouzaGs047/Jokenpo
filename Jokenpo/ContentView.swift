@@ -8,17 +8,13 @@
 import SwiftUI
 import MultipeerConnectivity
 
-import SwiftUI
-import MultipeerConnectivity
-
 struct ContentView: View {
     @StateObject private var service = JokenpoMultipeerService()
     
     var body: some View {
         NavigationStack {
-            ConnectionView()
-                .environmentObject(service)
-//                .navigationTitle("Jokenpo Multipeer")
+            StartView()
         }
+        .environmentObject(service)
     }
 }

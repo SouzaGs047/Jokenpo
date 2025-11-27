@@ -51,19 +51,24 @@ struct GameView: View {
             }
             
             Spacer()
-            
-            Button(role: .destructive) {
-                service.disconnect()
-                dismiss()
-            } label: {
-                Label("Encerrar partida", systemImage: "xmark.circle")
-            }
         }
         .padding()
-        .navigationTitle("Jogo")
-        .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: service.isConnected) { conectado in
-            if !conectado {
+        .navigationBarBackButtonHidden(true) // ⛔ remove a seta padrão
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    service.disconnect()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.headline)
+                        .bold()
+                        .foregroundColor(.blue)
+                }
+            }
+        }
+        .onChange(of: service.isConnected) { oldValue, newValue in
+            if !newValue {
                 dismiss()
             }
         }
