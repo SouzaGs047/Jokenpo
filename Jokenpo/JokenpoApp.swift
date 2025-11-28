@@ -1,8 +1,9 @@
 //
-//  JokenpoApp.swift
+//  ConnectionView.swift
 //  Jokenpo
 //
-//  Created by Gustavo Souza Santana on 23/11/25.
+//  Created by Ana Jamas on 17/11/25.
+//  Created by Luisiana Ramirez on 17/11/25.
 //
 
 import SwiftUI

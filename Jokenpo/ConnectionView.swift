@@ -2,7 +2,8 @@
 //  ConnectionView.swift
 //  Jokenpo
 //
-//  Created by Gustavo Souza Santana on 25/11/25.
+//  Created by Ana Jamas on 17/11/25.
+//  Created by Luisiana Ramirez on 17/11/25.
 //
 
 import SwiftUI
@@ -23,29 +24,26 @@ struct ConnectionView: View {
                 Image("jokenGo")
                     .padding(.top,50)
                     .padding(.bottom,25)
-                // Botões de Host / Join
                 VStack(spacing: 15) {
-                    // Botão de Criar Sala (host)
-                    if !joinRoom {   // <-- agora ele depende de joinRoom
+                    if !joinRoom {
                         Button {
                             service.stopBrowsing()
                             service.startHosting()
                             
-                            createRoom = true   // está criando sala
-                            joinRoom = false    // não está procurando sala
+                            createRoom = true
+                            joinRoom = false
                         } label: {
                             Image(createRoom ? "tela2-creatingRoom" : "tela2-create")
                         }
                     }
                     
-                    // Botão de Encontrar Sala (join)
-                    if !createRoom {  // <-- agora ele depende de createRoom
+                    if !createRoom {
                         Button {
                             service.stopHosting()
                             service.startBrowsing()
                             
-                            createRoom = false   // não está criando
-                            joinRoom = true      // está procurando sala
+                            createRoom = false
+                            joinRoom = true
                         } label: {
                             Image(joinRoom ? "tela2-findingRoom" : "tela2-find")
                         }
@@ -54,7 +52,7 @@ struct ConnectionView: View {
                 
                 
                 if createRoom {
-                    Text("aguardando jogador entrar na sala....")
+                    Text("Aguardando jogador entrar na sala....")
                         .font(.headline)
                         .padding()
                 }
@@ -63,7 +61,7 @@ struct ConnectionView: View {
                 if joinRoom {
                     VStack(alignment: .center) {
                         
-                        Text("encontrando outro jogador....")
+                        Text("Encontrando outro jogador....")
                             .font(.headline)
                             .padding()
                         

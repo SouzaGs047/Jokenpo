@@ -1,8 +1,9 @@
 //
-//  StartView.swift
+//  ConnectionView.swift
 //  Jokenpo
 //
-//  Created by Gustavo Souza Santana on 26/11/25.
+//  Created by Ana Jamas on 17/11/25.
+//  Created by Luisiana Ramirez on 17/11/25.
 //
 
 import SwiftUI
@@ -20,7 +21,7 @@ struct StartView: View {
                 } label: {
                     Image("tela1-start")
                 }
-                .padding(.bottom)
+                .padding(.bottom, 40)
             }
         }
     }

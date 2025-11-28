@@ -1,8 +1,9 @@
 //
-//  NPCManager.swift
+//  ConnectionView.swift
 //  Jokenpo
 //
-//  Created by Gustavo Souza Santana on 23/11/25.
+//  Created by Ana Jamas on 17/11/25.
+//  Created by Luisiana Ramirez on 17/11/25.
 //
 
 import Foundation
@@ -38,12 +39,14 @@ struct JokenpoMessage: Codable {
 class JokenpoMultipeerService: NSObject, ObservableObject {
     
     // MARK: - Multipeer
-    private let serviceType = "jokenpo-game" //máx 15 chars, minúsculo
+    
+    private let serviceType = "jokenpo-game"
     private let myPeerID = MCPeerID(displayName: UIDevice.current.name)
     
     private var session: MCSession!
     private var advertiser: MCNearbyServiceAdvertiser?
     private var browser: MCNearbyServiceBrowser?
+    
     
     // MARK: - Estado publicado para a View
     
@@ -58,10 +61,9 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
     @Published var opponentMove: JokenpoMove? = nil
     @Published var resultText: String = ""
     
-    // Controle de rounds (melhor de 3)
-    @Published var currentRoundIndex: Int = 0          // 0, 1, 2
+    @Published var currentRoundIndex: Int = 0
     @Published var roundResults: [RoundResult] = Array(repeating: .none, count: 3)
-    @Published var matchFinished: Bool = false         // rodada (melhor de 3) terminou?
+    @Published var matchFinished: Bool = false
 
     
     // MARK: - Init
@@ -126,7 +128,7 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
         DispatchQueue.main.async {
             self.connectedPeerName = nil
             self.isConnected = false
-            self.resetMatch(localOnly: true) // só local
+            self.resetMatch(localOnly: true)
         }
     }
 
@@ -160,7 +162,6 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
         resultText = "Escolha sua jogada"
     }
 
-    // localOnly = true → só mexe aqui, não manda nada na sessão
     func resetMatch(localOnly: Bool = false) {
         currentRoundIndex = 0
         roundResults = Array(repeating: .none, count: 3)
@@ -174,7 +175,7 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
     }
 
     func nextRound(localOnly: Bool = false) {
-        guard currentRoundIndex < 2 else { return } // máximo 3 rounds
+        guard currentRoundIndex < 2 else { return }
         currentRoundIndex += 1
         resetRound()
         
@@ -196,7 +197,6 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
             return
         }
         
-        // Determina o resultado desse round
         let roundResult: RoundResult
         
         if my == opp {
@@ -209,13 +209,10 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
             roundResult = .defeat
         }
         
-        // Salva na posição atual (bolinha correspondente)
         if currentRoundIndex < roundResults.count {
             roundResults[currentRoundIndex] = roundResult
         }
         
-        // Se ainda não preencheu os 3 rounds, mostra o resultado do round
-        // e espera o botão "Novo round" para continuar
         if currentRoundIndex < roundResults.count - 1 {
             switch roundResult {
             case .win:    resultText = "win"
@@ -226,7 +223,6 @@ class JokenpoMultipeerService: NSObject, ObservableObject {
             return
         }
         
-        // Se chegou no último round (3º), calcula o resultado da RODADA (melhor de 3)
         matchFinished = true
         
         let wins    = roundResults.filter { $0 == .win }.count
@@ -280,10 +276,8 @@ extension JokenpoMultipeerService: MCSessionDelegate {
                         self.updateResult()
                     }
                 case .resetMatch:
-                    // aplica o reset só localmente (já veio do outro)
                     self.resetMatch(localOnly: true)
                 case .nextRound:
-                    // avança de round só localmente
                     self.nextRound(localOnly: true)
                 }
             }
@@ -292,7 +286,6 @@ extension JokenpoMultipeerService: MCSessionDelegate {
         }
     }
 
-    // Não usados aqui, mas precisam existir:
     func session(_ session: MCSession,
                  didReceive stream: InputStream,
                  withName streamName: String,
@@ -317,7 +310,6 @@ extension JokenpoMultipeerService: MCNearbyServiceAdvertiserDelegate {
                     didReceiveInvitationFromPeer peerID: MCPeerID,
                     withContext context: Data?,
                     invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-        // Host aceita automaticamente
         invitationHandler(true, session)
     }
     
